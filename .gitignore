@@ -33,3 +33,8 @@ examples/notebooks/tile_cache_val/*.json
 examples/notebooks/tile_cache_val/*.png
 examples/webapps/*/node_modules
 .tox/**/*
+
+*.ckpt
+*.tfevents.*
+*.wandb
+**/wandb/*

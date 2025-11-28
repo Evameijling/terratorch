@@ -1,0 +1,201 @@
+# lightning.pytorch==2.5.1.post0
+seed_everything: 0
+trainer:
+  accelerator: gpu
+  strategy: ddp_find_unused_parameters_true
+  devices: auto
+  num_nodes: 1
+  precision: 32
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      name: snow_v1_usat_
+      save_dir: /home/egm/Data/Projects/FMs/CrossComparison/terratorch/examples/snowice/results
+      offline: false
+      project: terratorch
+      log_model: false
+      prefix: ''
+  callbacks:
+  - class_path: lightning.pytorch.callbacks.RichProgressBar
+    init_args:
+      refresh_rate: 1
+      leave: false
+      theme:
+        description: ''
+        progress_bar: '#6206E0'
+        progress_bar_finished: '#6206E0'
+        progress_bar_pulse: '#6206E0'
+        batch_progress: ''
+        time: dim
+        processing_speed: dim underline
+        metrics: italic
+        metrics_text_delimiter: ' '
+        metrics_format: .3f
+  - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+    init_args:
+      logging_interval: epoch
+      log_momentum: false
+      log_weight_decay: false
+  - class_path: lightning.pytorch.callbacks.EarlyStopping
+    init_args:
+      monitor: val/loss
+      min_delta: 0.0
+      patience: 100
+      verbose: true
+      mode: min
+      strict: true
+      check_finite: false
+      log_rank_zero_only: false
+  - class_path: terratorch.cli_tools.StateDictAwareModelCheckpoint
+    init_args:
+      filename: '{epoch}'
+      monitor: val/loss
+  - class_path: terratorch.cli_tools.StateDictAwareModelCheckpoint
+    init_args:
+      filename: '{epoch}_state_dict'
+      save_weights_only: true
+      monitor: val/loss
+  fast_dev_run: false
+  max_epochs: 200
+  max_steps: -1
+  overfit_batches: 0.0
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 1
+  enable_checkpointing: true
+  accumulate_grad_batches: 2
+  inference_mode: true
+  use_distributed_sampler: true
+  detect_anomaly: false
+  barebones: false
+  sync_batchnorm: false
+  reload_dataloaders_every_n_epochs: 0
+  default_root_dir: /home/egm/Data/Projects/FMs/CrossComparison/terratorch/examples/snowice/results
+model:
+  class_path: terratorch.tasks.PixelwiseRegressionTask
+  init_args:
+    model_args:
+      decoder: FCNDecoder
+      decoder_num_convs: 4
+      decoder_channels: 256
+      backbone: terramind_v1_tiny
+      backbone_pretrained: true
+      backbone_modalities:
+      - S2L1C_SLSTR
+      backbone_bands:
+        S2L1C_SLSTR:
+        - S1_reflectance_an
+        - S2_reflectance_an
+        - S3_reflectance_an
+        - S5_reflectance_an
+        - S6_reflectance_an
+      head_dropout: 0.1
+      head_channel_list:
+      - 256
+      necks:
+      - name: SelectIndices
+        indices:
+        - 2
+        - 5
+        - 8
+        - 11
+      - name: ReshapeTokensToImage
+        remove_cls_token: false
+      - name: LearnedInterpolateToPyramidal
+    model_factory: EncoderDecoderFactory
+    loss: mae
+    ignore_index: 255
+    lr: 0.001
+    freeze_backbone: true
+    freeze_decoder: false
+    freeze_head: false
+    plot_on_val: 1
+    tiled_inference_on_testing: false
+    tiled_inference_on_validation: false
+data:
+  class_path: terratorch.datamodules.SnowMapNonGeoDataModule
+  init_args:
+    data_root: /home/egm/Data/Projects/FMs/CrossComparison/data/snow_monitoring
+    batch_size: 8
+    num_workers: 4
+    means:
+    - 0.3376
+    - 0.337
+    - 0.4052
+    - 0.1829
+    - 0.136
+    stds:
+    - 0.1604
+    - 0.1718
+    - 0.1745
+    - 0.1009
+    - 0.0807
+    bands:
+    - S1_reflectance_an
+    - S2_reflectance_an
+    - S3_reflectance_an
+    - S5_reflectance_an
+    - S6_reflectance_an
+    train_transform:
+    - class_path: albumentations.CropNonEmptyMaskIfExists
+      init_args:
+        height: 144
+        width: 144
+        ignore_values:
+        - 255
+        p: 1.0
+    - class_path: albumentations.pytorch.ToTensorV2
+      init_args:
+        transpose_mask: false
+        p: 1.0
+    val_transform:
+    - class_path: albumentations.CenterCrop
+      init_args:
+        height: 144
+        width: 144
+        p: 1.0
+    - class_path: albumentations.pytorch.ToTensorV2
+      init_args:
+        transpose_mask: false
+        p: 1.0
+    test_transform:
+    - class_path: albumentations.CenterCrop
+      init_args:
+        height: 144
+        width: 144
+        p: 1.0
+    - class_path: albumentations.pytorch.ToTensorV2
+      init_args:
+        transpose_mask: false
+        p: 1.0
+    drop_last: true
+    constant_scale: 1.0
+    no_data_replace: median
+    no_label_replace: 255
+    use_metadata: false
+out_dtype: int16
+deploy_config_file: true
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 0.0001
+    betas:
+    - 0.9
+    - 0.999
+    eps: 1.0e-08
+    weight_decay: 0.0125
+    amsgrad: false
+    maximize: false
+    capturable: false
+    differentiable: false
+lr_scheduler:
+  class_path: lightning.pytorch.cli.ReduceLROnPlateau
+  init_args:
+    monitor: val/loss
+    mode: min
+    factor: 0.5
+    patience: 20
+    threshold: 0.001
+    threshold_mode: rel
+    cooldown: 0
+    min_lr: 0.0
+    eps: 1.0e-08

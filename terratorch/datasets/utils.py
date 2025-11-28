@@ -153,6 +153,17 @@ def _split_filter_function(file_name, valid_files: list[str], ignore_extensions=
     return False
 
 
+# def to_tensor(d, transpose=True):
+#     new_dict = {}
+#     for k, v in d.items():
+#         if not isinstance(v, np.ndarray):
+#             new_dict[k] = v
+#         else:
+#             if k == "image" and transpose:
+#                 v = np.moveaxis(v, -1, 0)
+#             new_dict[k] = torch.from_numpy(v)
+#     return new_dict
+
 def to_tensor(d, transpose=True):
     new_dict = {}
     for k, v in d.items():
@@ -160,9 +171,36 @@ def to_tensor(d, transpose=True):
             new_dict[k] = v
         else:
             if k == "image" and transpose:
-                v = np.moveaxis(v, -1, 0)
+                if len(v.shape) == 5:
+                    raise NotImplementedError("Temporal axis not implemented")
+                    # v = np.moveaxis(v, 1, -1)
+                elif len(v.shape) == 4:
+                    v = np.moveaxis(v, -1, 1)  # TODO: lets hope terratorch don't have temporal without batch dimension
+                elif len(v.shape) == 3:
+                    v = np.moveaxis(v, -1, 0)
             new_dict[k] = torch.from_numpy(v)
     return new_dict
+
+
+def to_numpy(d):
+    new_dict = {}
+    for k, v in d.items():
+        if not isinstance(v, torch.Tensor):
+            new_dict[k] = v
+        else:
+            v = v.numpy()
+            if k == "image":
+                if len(v.shape) == 5:
+                    # TODO: determince temporal axis
+                    raise NotImplementedError("Temporal axis not implemented")
+                    # v = np.moveaxis(v, 1, -1)
+                elif len(v.shape) == 4:
+                    v = np.moveaxis(v, 1, -1)
+                elif len(v.shape) == 3:
+                    v = np.moveaxis(v, 0, -1)
+            new_dict[k] = v
+    return new_dict
+
 
 
 def pad_numpy(x, target_length, pad_value=0):

@@ -38,6 +38,7 @@ from terratorch.datasets.pastis import PASTIS
 # GenericNonGeoRegressionDataset,
 
 from terratorch.datasets.sen1floods11 import Sen1Floods11NonGeo
+from terratorch.datasets.snow_map_dataset import SnowMapDataset
 from terratorch.datasets.utils import HLSBands, OpticalBands, SARBands
 
 #from terratorch.datasets.sen1floods11 import Sen1Floods11NonGeo
@@ -88,6 +89,7 @@ __all__ = (
     "FireScarsHLS",
     "FireScarsSegmentationMask",
     "Sen1Floods11NonGeo",
+    "SnowMapDataset",
     "MultiTemporalCropClassification",
     "Sen4MapDatasetMonthlyComposites",
     "HLSBands",
