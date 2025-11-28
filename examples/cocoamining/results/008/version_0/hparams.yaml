@@ -1,0 +1,55 @@
+task: segmentation
+tiled_inference_on_testing: false
+tiled_inference_on_validation: false
+path_to_record_metrics: null
+model_args:
+  backbone: terramind_v1_base_tim
+  backbone_pretrained: true
+  backbone_modalities:
+  - S2L2A
+  backbone_tim_modalities:
+  - DEM
+  necks:
+  - name: SelectIndices
+    indices:
+    - 2
+    - 5
+    - 8
+    - 11
+  - name: ReshapeTokensToImage
+    remove_cls_token: false
+  - name: LearnedInterpolateToPyramidal
+  decoder: UNetDecoder
+  decoder_channels:
+  - 512
+  - 256
+  - 128
+  - 64
+  head_dropout: 0.1
+  num_classes: 3
+model_factory: EncoderDecoderFactory
+model: null
+loss: ce
+aux_heads: null
+aux_loss: null
+class_weights: null
+ignore_index: -1
+lr: 0.001
+optimizer: AdamW
+optimizer_hparams:
+  weight_decay: 0.05
+scheduler: null
+scheduler_hparams: null
+freeze_backbone: true
+freeze_decoder: false
+freeze_head: false
+plot_on_val: 10
+class_names:
+- Background
+- Mining
+- Cocoa
+tiled_inference_parameters: null
+test_dataloaders_names: null
+lr_overrides: null
+output_on_inference: prediction
+output_most_probable: true

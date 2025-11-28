@@ -1,0 +1,137 @@
+# TerraTorch config for CocoaMining dataset with TerraMind
+seed_everything: 42
+trainer:
+  accelerator: auto
+  strategy: auto
+  devices: 1
+  num_nodes: 1
+  precision: 16-mixed
+  logger:
+    class_path: TensorBoardLogger
+    init_args:
+      save_dir: /p/project1/hai_eo_crop/hucko2/results
+      name: cocoamining_exp008
+  callbacks:
+    - class_path: RichProgressBar
+    - class_path: LearningRateMonitor
+      init_args:
+        logging_interval: epoch
+    - class_path: ModelCheckpoint
+      init_args:
+        monitor: val/loss
+        save_top_k: 1
+        save_last: true
+    - class_path: EarlyStopping
+      init_args:
+        monitor: val/loss
+        patience: 20
+        min_delta: 0.00
+  max_epochs: 100
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 1
+  enable_checkpointing: true
+  default_root_dir: /p/project1/hai_eo_crop/hucko2/results
+
+data:
+  class_path: terratorch.datamodules.cocoamining.CocoaMiningDataModule
+  init_args:
+    batch_size: 4
+    num_workers: 8
+    train_data_root: /p/project1/hai_eo_crop/hucko2/data/CocoaMiningDS/2016
+    val_data_root: /p/project1/hai_eo_crop/hucko2/data/CocoaMiningDS/2016
+    test_data_root: /p/project1/hai_eo_crop/hucko2/data/CocoaMiningDS/2016
+    img_grep: "IMAGE/IMG_*.tif"
+    label_grep: "MASK/MASK_*.tif"
+    split_path: /p/project1/hai_eo_crop/hucko2/data/CocoaMiningDS/2016/train_test_splits.csv
+    dataset_bands:
+      - BLUE
+      - GREEN
+      - RED
+      - RED_EDGE_1
+      - RED_EDGE_2
+      - RED_EDGE_3
+      - NIR_BROAD
+      - NIR_NARROW
+      - SWIR_1
+      - SWIR_2
+    output_bands:
+      - BLUE
+      - GREEN
+      - RED
+      - RED_EDGE_1
+      - RED_EDGE_2
+      - RED_EDGE_3
+      - NIR_BROAD
+      - NIR_NARROW
+      - SWIR_1
+      - SWIR_2
+    train_transform:
+      - class_path: albumentations.HorizontalFlip
+        init_args:
+          p: 0.5
+      - class_path: albumentations.VerticalFlip
+        init_args:
+          p: 0.5
+      - class_path: ToTensorV2
+    means:
+      - 1465.16076660
+      - 1720.63488770
+      - 1695.57812500
+      - 2131.74975586
+      - 3223.77392578
+      - 3626.39038086
+      - 3727.01831055
+      - 3927.40429688
+      - 3205.23754883
+      - 2228.02368164
+    stds:
+      - 148.41740417
+      - 196.94464111
+      - 285.10070801
+      - 271.32940674
+      - 257.74014282
+      - 300.72171021
+      - 348.69989014
+      - 321.46240234
+      - 333.51858521
+      - 324.53616333
+    no_data_replace: 0
+    no_label_replace: -1
+    num_classes: 3
+
+model:
+  class_path: terratorch.datamodules.cocoamining.CocoaMiningTask
+  init_args:
+    model_factory: EncoderDecoderFactory
+    model_args:
+      backbone: terramind_v1_base_tim
+      backbone_pretrained: true
+      backbone_modalities:
+        - S2L2A
+      backbone_tim_modalities:
+        - DEM
+      necks:
+        - name: SelectIndices
+          indices: [2, 5, 8, 11]  # for terramind_v1_base
+        - name: ReshapeTokensToImage
+          remove_cls_token: false
+        - name: LearnedInterpolateToPyramidal
+      decoder: UNetDecoder
+      decoder_channels: [512, 256, 128, 64]
+      head_dropout: 0.1
+      num_classes: 3
+    loss: ce
+    lr: 0.001
+    ignore_index: -1
+    freeze_backbone: true
+    freeze_decoder: false
+    class_names:
+      - Background
+      - Mining
+      - Cocoa
+
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 0.001
+    weight_decay: 0.05
