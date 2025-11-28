@@ -1,0 +1,182 @@
+# lightning.pytorch==2.1.1
+seed_everything: 0
+trainer:
+  accelerator: gpu
+  strategy: auto
+  devices: auto
+  num_nodes: 1
+  precision: 32 #16-mixed #32
+  #logger: True # will use tensorboardlogger
+  logger:
+    class_path: WandbLogger
+    init_args:
+      name: snow_v1_usat_
+      project: terratorch
+      save_dir: /nr/bamjo/projects/fm4cs/usr/arnt/terratorch_results
+  callbacks:
+    - class_path: RichProgressBar
+    - class_path: LearningRateMonitor
+      init_args:
+        logging_interval: epoch
+    - class_path: EarlyStopping # TODO: or monitory learning rate? # TODO: repeat for all configs
+      init_args:
+        monitor: val/loss
+        patience: 100
+        mode: min
+        check_finite: false
+        verbose: true
+        
+  max_epochs: 200  # 300  # 200
+  check_val_every_n_epoch: 1
+  accumulate_grad_batches: 2
+  log_every_n_steps: 1
+  enable_checkpointing: true
+  default_root_dir: /nr/bamjo/projects/fm4cs/usr/arnt/terratorch_results/results
+data:
+  class_path: SnowMapNonGeoDataModule 
+  init_args:
+    batch_size: 8 # 16
+    num_workers: 4  # 4 # 0
+    bands:
+      - S1_reflectance_an
+      - S2_reflectance_an
+      - S3_reflectance_an
+      # - S4_reflectance_an
+      - S5_reflectance_an
+      - S6_reflectance_an
+      # - S7_BT_in
+      # - S8_BT_in 
+      # - S9_BT_in
+    # rgb_indices:
+    #   - 0
+    #   - 1
+    #   - 2
+    train_transform:
+      - class_path: albumentations.CropNonEmptyMaskIfExists #RandomCrop
+        init_args:
+          height: 144 #144 #224 / 112 
+          width: 144 #144
+          p: 1.0
+          ignore_values: [255]
+      - class_path: ToTensorV2
+    val_transform:
+      - class_path: albumentations.CenterCrop # CenterCrop
+        init_args:
+          height: 144 #144
+          width: 144 #144
+          p: 1.0
+      - class_path: ToTensorV2
+    test_transform:
+      - class_path: albumentations.CenterCrop # CenterCrop
+        init_args:
+          height: 144 #144
+          width: 144 #144
+          p: 1.0
+      - class_path: ToTensorV2
+    data_root: /local_4tb/ai4arctic/preprocessed_for_dl/rev8 # salberg-pc
+    no_label_replace: 255
+    no_data_replace: "median"
+    means:
+      - 0.3376
+      - 0.3370
+      - 0.4052
+      # - 0.0112
+      - 0.1829
+      - 0.1360
+      # - 286.7439
+      # - 279.2700
+      # - 277.9107
+    stds:
+      - 0.1604
+      - 0.1718
+      - 0.1745
+      # - 0.0281
+      - 0.1009
+      - 0.0807
+      # - 44.5894
+      # - 79.1081
+      # - 77.4055
+
+model:
+  class_path: terratorch.tasks.PixelwiseRegressionTask
+  init_args:
+    plot_on_val: 1
+    model_args:
+      decoder: FCNDecoder
+      decoder_num_convs: 4
+      decoder_channels: 256
+
+      # decoder: UperNetDecoder
+      # decoder_scale_modules: true
+      # decoder_pool_scales: [1, 2, 3, 6]
+      # decoder_channels: 256
+
+      backbone: usat_vit_base_encoder_alibi
+      backbone_config_path: examples/confs/fm4cs/alibi/fm4cs-base-lumi.yaml 
+      backbone_pretrained_cfg_overlay:
+        file: /nr/bamjo/projects/fm4cs/usr/tforgaard/fm4cs_results/lumi/pretraining/pretrain_usat_fm4cs_base_288_lumi_subset_contrast_flexivit_encoder_alibi_decoder_alibi_S123_dv6_wc_v2_mp/version_2/ckpt/last.ckpt
+        input_params:
+          ground_covers: [69120] # [107520]  # [69120]  # [1440] # m
+          flexivit_patch_size_seqs: [6] 
+      use_legacy_bands: false
+      pretrained: true
+      backbone_out_indices: [-1]  # [2,5,8,11]
+
+      bands:
+      - S1_reflectance_an
+      - S2_reflectance_an
+      - S3_reflectance_an
+      # - S4_reflectance_an
+      - S5_reflectance_an
+      - S6_reflectance_an
+      # - S7_BT_in
+      # - S8_BT_in 
+      # - S9_BT_in
+      num_frames: 1
+      # num_classes: 2
+      head_dropout: 0.1
+      head_channel_list:
+        - 256
+      necks:
+        - name: UsatGroupReshapeTokensToImage
+    loss: mae
+    # aux_heads:
+    #   - name: aux_head
+    #     decoder: FCNDecoder
+    #     decoder_args:
+    #       decoder_channels: 256
+    #       decoder_in_index: -1
+    #       decoder_num_convs: 2
+    #       head_dropout: 0.1
+    #       # head_channel_list:
+    #       #   - 64
+    # aux_loss:
+    #   aux_head: 1.0
+    ignore_index: 255
+
+    freeze_backbone: true
+    freeze_decoder: false
+    model_factory: USatMAEModelFactory
+    # tiled_inference_parameters:
+    #   h_crop: 112
+    #   h_stride: 84 
+    #   w_crop: 112
+    #   w_stride: 84
+    #   average_patches: true
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 1e-4  # 1e-4 # 1e-4  # 6.e-5
+    weight_decay: 0.0125  # 0.0125  # 0.05
+lr_scheduler:
+  class_path: ReduceLROnPlateau
+  init_args:
+    monitor: val/loss
+    mode: min
+    factor: 0.5
+    patience: 20
+    threshold: 0.001
+# lr_scheduler:
+#   class_path: CosineAnnealingLR
+#   init_args:
+#     T_max: 50
