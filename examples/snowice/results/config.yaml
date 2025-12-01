@@ -199,3 +199,5 @@ lr_scheduler:
     cooldown: 0
     min_lr: 0.0
     eps: 1.0e-08
+ckpt_path: /home/egm/Data/Projects/FMs/CrossComparison/terratorch/examples/snowice/results/terratorch/eh43iy22/checkpoints/epoch=169.ckpt
+verbose: true

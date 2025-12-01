@@ -2,7 +2,7 @@
 seed_everything: 0
 trainer:
   accelerator: gpu
-  strategy: ddp_find_unused_parameters_true
+  strategy: auto
   devices: auto
   num_nodes: 1
   precision: 32 #16-mixed #32
@@ -12,7 +12,7 @@ trainer:
     init_args:
       name: snow_v1_usat_
       project: terratorch
-      save_dir: /home/egm/Data/Projects/FMs/CrossComparison/terratorch/examples/snowice/results
+      save_dir: /home/egm/Data/Projects/FMs/CrossComparison/terratorch/examples/snowice_thor/results
   callbacks:
     - class_path: RichProgressBar
     - class_path: LearningRateMonitor
@@ -31,9 +31,9 @@ trainer:
   accumulate_grad_batches: 2
   log_every_n_steps: 1
   enable_checkpointing: true
-  default_root_dir: /home/egm/Data/Projects/FMs/CrossComparison/terratorch/examples/snowice/results
+  default_root_dir: /home/egm/Data/Projects/FMs/CrossComparison/terratorch/examples/snowice_thor/results
 data:
-  class_path: terratorch.datamodules.SnowMapNonGeoDataModule 
+  class_path: SnowMapNonGeoDataModule 
   init_args:
     batch_size: 8 # 16
     num_workers: 4  # 4 # 0
@@ -73,7 +73,7 @@ data:
           width: 144 #144
           p: 1.0
       - class_path: ToTensorV2
-    data_root: /home/egm/Data/Projects/FMs/CrossComparison/data/snow_monitoring
+    data_root: /home/egm/Data/Projects/FMs/CrossComparison/data/snow_monitoring # salberg-pc
     no_label_replace: 255
     no_data_replace: "median"
     means:
@@ -111,35 +111,34 @@ model:
       # decoder_pool_scales: [1, 2, 3, 6]
       # decoder_channels: 256
 
-      backbone: terramind_v1_tiny
-      backbone_pretrained: true  # Use pretrained weights, reusing S2L1C embeddings for SLSTR
-      backbone_modalities:
-        - S2L1C_SLSTR  # Reuse S2L1C patch embedding for SLSTR optical data
-      backbone_bands:
-        S2L1C_SLSTR:
-          - S1_reflectance_an
-          - S2_reflectance_an
-          - S3_reflectance_an
-          - S5_reflectance_an
-          - S6_reflectance_an
-      # IMPROVED VERSION: Map SLSTR bands to similar S2 bands by wavelength for transfer learning
-      # backbone_bands:
-      #   S2L1C_SLSTR:
-      #     - GREEN        # S1 (555nm) ≈ Sentinel-2 Green (560nm)
-      #     - RED          # S2 (659nm) ≈ Sentinel-2 Red (665nm)
-      #     - NIR_NARROW   # S3 (868nm) ≈ Sentinel-2 NIR (865nm)
-      #     - SWIR_1       # S5 (1610nm) ≈ Sentinel-2 SWIR-1 (1610nm)
-      #     - SWIR_2       # S6 (2250nm) ≈ Sentinel-2 SWIR-2 (2190nm)
+      backbone: usat_vit_base_encoder_alibi
+      backbone_config_path: examples/confs/fm4cs/alibi/fm4cs-base-lumi.yaml 
+      backbone_pretrained_cfg_overlay:
+        file: /nr/bamjo/projects/fm4cs/usr/tforgaard/fm4cs_results/lumi/pretraining/pretrain_usat_fm4cs_base_288_lumi_subset_contrast_flexivit_encoder_alibi_decoder_alibi_S123_dv6_wc_v2_mp/version_2/ckpt/last.ckpt
+        input_params:
+          ground_covers: [69120] # [107520]  # [69120]  # [1440] # m
+          flexivit_patch_size_seqs: [6] 
+      use_legacy_bands: false
+      pretrained: true
+      backbone_out_indices: [-1]  # [2,5,8,11]
+
+      bands:
+      - S1_reflectance_an
+      - S2_reflectance_an
+      - S3_reflectance_an
+      # - S4_reflectance_an
+      - S5_reflectance_an
+      - S6_reflectance_an
+      # - S7_BT_in
+      # - S8_BT_in 
+      # - S9_BT_in
+      num_frames: 1
       # num_classes: 2
       head_dropout: 0.1
       head_channel_list:
         - 256
       necks:
-        - name: SelectIndices
-          indices: [2, 5, 8, 11]  # Multi-scale: 4 layers for tiny model (12 layers total)
-        - name: ReshapeTokensToImage
-          remove_cls_token: False
-        - name: LearnedInterpolateToPyramidal
+        - name: UsatGroupReshapeTokensToImage
     loss: mae
     # aux_heads:
     #   - name: aux_head
@@ -157,7 +156,7 @@ model:
 
     freeze_backbone: true
     freeze_decoder: false
-    model_factory: EncoderDecoderFactory
+    model_factory: USatMAEModelFactory
     # tiled_inference_parameters:
     #   h_crop: 112
     #   h_stride: 84 
