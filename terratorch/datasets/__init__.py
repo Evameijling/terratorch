@@ -38,6 +38,7 @@ from terratorch.datasets.pastis import PASTIS
 # GenericNonGeoRegressionDataset,
 
 from terratorch.datasets.sen1floods11 import Sen1Floods11NonGeo
+from terratorch.datasets.mire_map_dataset import MireMapDataset
 from terratorch.datasets.utils import HLSBands, OpticalBands, SARBands
 
 #from terratorch.datasets.sen1floods11 import Sen1Floods11NonGeo

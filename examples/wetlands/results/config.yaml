@@ -1,0 +1,230 @@
+# lightning.pytorch==2.5.1.post0
+seed_everything: 0
+trainer:
+  accelerator: gpu
+  strategy: ddp_find_unused_parameters_true
+  devices: auto
+  num_nodes: 1
+  precision: 16-mixed
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      name: mire_S2_terramind_tiny
+      save_dir: /home/egm/Data/Projects/FMs/CrossComparison/terratorch/examples/wetlands/results
+      offline: false
+      project: terratorch
+      log_model: false
+      prefix: ''
+  callbacks:
+  - class_path: lightning.pytorch.callbacks.RichProgressBar
+    init_args:
+      refresh_rate: 1
+      leave: false
+      theme:
+        description: ''
+        progress_bar: '#6206E0'
+        progress_bar_finished: '#6206E0'
+        progress_bar_pulse: '#6206E0'
+        batch_progress: ''
+        time: dim
+        processing_speed: dim underline
+        metrics: italic
+        metrics_text_delimiter: ' '
+        metrics_format: .3f
+  - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+    init_args:
+      logging_interval: epoch
+      log_momentum: false
+      log_weight_decay: false
+  - class_path: lightning.pytorch.callbacks.EarlyStopping
+    init_args:
+      monitor: val/loss
+      min_delta: 0.0
+      patience: 50
+      verbose: true
+      mode: min
+      strict: true
+      check_finite: false
+      log_rank_zero_only: false
+  - class_path: terratorch.cli_tools.StateDictAwareModelCheckpoint
+    init_args:
+      filename: '{epoch}'
+      monitor: val/loss
+  - class_path: terratorch.cli_tools.StateDictAwareModelCheckpoint
+    init_args:
+      filename: '{epoch}_state_dict'
+      save_weights_only: true
+      monitor: val/loss
+  fast_dev_run: false
+  max_epochs: 200
+  max_steps: -1
+  overfit_batches: 0.0
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 1
+  enable_checkpointing: true
+  accumulate_grad_batches: 2
+  inference_mode: true
+  use_distributed_sampler: true
+  detect_anomaly: false
+  barebones: false
+  sync_batchnorm: false
+  reload_dataloaders_every_n_epochs: 0
+  default_root_dir: /home/egm/Data/Projects/FMs/CrossComparison/terratorch/examples/wetlands/results
+model:
+  class_path: terratorch.tasks.SemanticSegmentationTask
+  init_args:
+    model_args:
+      decoder: FCNDecoder
+      decoder_channels: 256
+      decoder_num_convs: 4
+      backbone: terramind_v1_tiny
+      backbone_pretrained: true
+      backbone_modalities:
+      - S2L1C
+      backbone_bands:
+        S2L1C:
+        - RED
+        - GREEN
+        - BLUE
+        - NIR_BROAD
+        - RED_EDGE_1
+        - RED_EDGE_2
+        - RED_EDGE_3
+        - NIR_NARROW
+        - SWIR_1
+        - SWIR_2
+      num_classes: 6
+      head_dropout: 0.1
+      head_channel_list:
+      - 256
+      necks:
+      - name: SelectIndices
+        indices:
+        - 2
+        - 5
+        - 8
+        - 11
+      - name: ReshapeTokensToImage
+        remove_cls_token: false
+      - name: LearnedInterpolateToPyramidal
+    model_factory: EncoderDecoderFactory
+    loss: ce
+    class_weights:
+    - 0.1
+    - 0.1
+    - 0.1
+    - 0.1
+    - 0.5
+    - 0.1
+    ignore_index: 255
+    lr: 0.001
+    freeze_backbone: true
+    freeze_decoder: false
+    freeze_head: false
+    plot_on_val: 1
+    class_names:
+    - Bebygd
+    - Mark
+    - Skog
+    - Snaumark
+    - Myr
+    - Vann
+    output_on_inference: prediction
+    output_most_probable: true
+    tiled_inference_on_testing: false
+    tiled_inference_on_validation: false
+data:
+  class_path: terratorch.datamodules.MireMapNonGeoDataModule
+  init_args:
+    data_root: /home/egm/Data/Projects/FMs/CrossComparison/data/wetland_mapping/crops_1024_v2
+    batch_size: 8
+    num_workers: 2
+    means:
+    - 0.1507
+    - 0.1568
+    - 0.1464
+    - 0.2466
+    - 0.1815
+    - 0.2292
+    - 0.2385
+    - 0.2467
+    - 0.1326
+    - 0.0857
+    stds:
+    - 0.2529
+    - 0.2545
+    - 0.2592
+    - 0.2205
+    - 0.2493
+    - 0.2304
+    - 0.2184
+    - 0.2082
+    - 0.1178
+    - 0.0917
+    bands:
+    - RED
+    - GREEN
+    - BLUE
+    - NIR_BROAD
+    - RED_EDGE_1
+    - RED_EDGE_2
+    - RED_EDGE_3
+    - NIR_NARROW
+    - SWIR_1
+    - SWIR_2
+    train_transform:
+    - class_path: albumentations.CropNonEmptyMaskIfExists
+      init_args:
+        height: 144
+        width: 144
+        ignore_values:
+        - 255
+        p: 1.0
+    - class_path: albumentations.pytorch.ToTensorV2
+      init_args:
+        transpose_mask: false
+        p: 1.0
+    val_transform:
+    - class_path: albumentations.CropNonEmptyMaskIfExists
+      init_args:
+        height: 144
+        width: 144
+        ignore_values:
+        - 255
+        p: 1.0
+    - class_path: albumentations.pytorch.ToTensorV2
+      init_args:
+        transpose_mask: false
+        p: 1.0
+    drop_last: true
+    constant_scale: 1.0
+    no_data_replace: median
+    no_label_replace: 255
+    use_metadata: false
+out_dtype: int16
+deploy_config_file: true
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 5.0e-05
+    betas:
+    - 0.9
+    - 0.999
+    eps: 1.0e-08
+    weight_decay: 0.0005
+    amsgrad: false
+    maximize: false
+    capturable: false
+    differentiable: false
+lr_scheduler:
+  class_path: lightning.pytorch.cli.ReduceLROnPlateau
+  init_args:
+    monitor: val/loss
+    mode: min
+    factor: 0.1
+    patience: 10
+    threshold: 0.0001
+    threshold_mode: rel
+    cooldown: 0
+    min_lr: 0.0
+    eps: 1.0e-08

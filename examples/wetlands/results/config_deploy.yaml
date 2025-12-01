@@ -1,0 +1,155 @@
+data:
+  class_path: terratorch.datamodules.MireMapNonGeoDataModule
+  init_args:
+    bands:
+    - RED
+    - GREEN
+    - BLUE
+    - NIR_BROAD
+    - RED_EDGE_1
+    - RED_EDGE_2
+    - RED_EDGE_3
+    - NIR_NARROW
+    - SWIR_1
+    - SWIR_2
+    batch_size: 8
+    constant_scale: 1.0
+    data_root: /home/egm/Data/Projects/FMs/CrossComparison/data/wetland_mapping/crops_1024_v2
+    drop_last: true
+    means:
+    - 0.1507
+    - 0.1568
+    - 0.1464
+    - 0.2466
+    - 0.1815
+    - 0.2292
+    - 0.2385
+    - 0.2467
+    - 0.1326
+    - 0.0857
+    no_data_replace: median
+    no_label_replace: 255
+    num_workers: 2
+    stds:
+    - 0.2529
+    - 0.2545
+    - 0.2592
+    - 0.2205
+    - 0.2493
+    - 0.2304
+    - 0.2184
+    - 0.2082
+    - 0.1178
+    - 0.0917
+    train_transform:
+    - class_path: albumentations.CropNonEmptyMaskIfExists
+      init_args:
+        height: 144
+        ignore_values:
+        - 255
+        p: 1.0
+        width: 144
+    - class_path: albumentations.pytorch.ToTensorV2
+      init_args:
+        p: 1.0
+        transpose_mask: false
+    use_metadata: false
+    val_transform:
+    - class_path: albumentations.CropNonEmptyMaskIfExists
+      init_args:
+        height: 144
+        ignore_values:
+        - 255
+        p: 1.0
+        width: 144
+    - class_path: albumentations.pytorch.ToTensorV2
+      init_args:
+        p: 1.0
+        transpose_mask: false
+deploy_config_file: true
+model:
+  class_path: terratorch.tasks.SemanticSegmentationTask
+  init_args:
+    class_names:
+    - Bebygd
+    - Mark
+    - Skog
+    - Snaumark
+    - Myr
+    - Vann
+    class_weights:
+    - 0.1
+    - 0.1
+    - 0.1
+    - 0.1
+    - 0.5
+    - 0.1
+    freeze_backbone: true
+    freeze_decoder: false
+    freeze_head: false
+    ignore_index: 255
+    loss: ce
+    lr: 0.001
+    model_args:
+      backbone: terramind_v1_tiny
+      backbone_bands:
+        S2L1C:
+        - RED
+        - GREEN
+        - BLUE
+        - NIR_BROAD
+        - RED_EDGE_1
+        - RED_EDGE_2
+        - RED_EDGE_3
+        - NIR_NARROW
+        - SWIR_1
+        - SWIR_2
+      backbone_modalities:
+      - S2L1C
+      backbone_pretrained: false
+      decoder: FCNDecoder
+      decoder_channels: 256
+      decoder_num_convs: 4
+      head_channel_list:
+      - 256
+      head_dropout: 0.1
+      necks:
+      - indices:
+        - 2
+        - 5
+        - 8
+        - 11
+        name: SelectIndices
+      - name: ReshapeTokensToImage
+        remove_cls_token: false
+      - name: LearnedInterpolateToPyramidal
+      num_classes: 6
+    model_factory: EncoderDecoderFactory
+    output_most_probable: true
+    output_on_inference: prediction
+    plot_on_val: 1
+    tiled_inference_on_testing: false
+    tiled_inference_on_validation: false
+out_dtype: int16
+seed_everything: 0
+trainer:
+  accelerator: gpu
+  accumulate_grad_batches: 2
+  barebones: false
+  check_val_every_n_epoch: 1
+  detect_anomaly: false
+  devices: auto
+  enable_checkpointing: true
+  fast_dev_run: false
+  inference_mode: true
+  log_every_n_steps: 1
+  logger: false
+  max_epochs: 200
+  max_steps: -1
+  num_nodes: 1
+  overfit_batches: 0.0
+  precision: 16-mixed
+  reload_dataloaders_every_n_epochs: 0
+  strategy: ddp_find_unused_parameters_true
+  sync_batchnorm: false
+  use_distributed_sampler: true
