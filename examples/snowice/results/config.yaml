@@ -83,11 +83,11 @@ model:
       - S2L1C_SLSTR
       backbone_bands:
         S2L1C_SLSTR:
-        - S1_reflectance_an
-        - S2_reflectance_an
-        - S3_reflectance_an
-        - S5_reflectance_an
-        - S6_reflectance_an
+        - GREEN
+        - RED
+        - NIR_NARROW
+        - SWIR_1
+        - SWIR_2
       head_dropout: 0.1
       head_channel_list:
       - 256
@@ -199,5 +199,3 @@ lr_scheduler:
     cooldown: 0
     min_lr: 0.0
     eps: 1.0e-08
-ckpt_path: /home/egm/Data/Projects/FMs/CrossComparison/terratorch/examples/snowice/results/terratorch/eh43iy22/checkpoints/epoch=169.ckpt
-verbose: true
