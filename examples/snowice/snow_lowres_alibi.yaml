@@ -122,6 +122,14 @@ model:
           - S3_reflectance_an
           - S5_reflectance_an
           - S6_reflectance_an
+      # IMPROVED VERSION: Map SLSTR bands to similar S2 bands by wavelength for transfer learning
+      # backbone_bands:
+      #   S2L1C_SLSTR:
+      #     - GREEN        # S1 (555nm) ≈ Sentinel-2 Green (560nm)
+      #     - RED          # S2 (659nm) ≈ Sentinel-2 Red (665nm)
+      #     - NIR_NARROW   # S3 (868nm) ≈ Sentinel-2 NIR (865nm)
+      #     - SWIR_1       # S5 (1610nm) ≈ Sentinel-2 SWIR-1 (1610nm)
+      #     - SWIR_2       # S6 (2250nm) ≈ Sentinel-2 SWIR-2 (2190nm)
       # num_classes: 2
       head_dropout: 0.1
       head_channel_list:
